@@ -8,7 +8,7 @@ import * as orderModel from "../models/order.model.js";
 import type { NewOrder } from "../models/order.model.js";
 import { findProductById, updateProductStock } from "../models/product.model.js";
 import { findUserById } from "../models/user.model.js";
-import { broadcast } from "../sse.js";
+import { broadcast, endOrderStream } from "../sse.js";
 import type { Order, Product, Status } from "../types.js";
 
 const DELIVERY_DELAY_MS = 20_000;
@@ -22,6 +22,10 @@ const NEXT_STATUS: Partial<Record<Status, Status>> = {
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+export function isFinished(order: Order): boolean {
+  return order.status === "delivered" || order.status === "cancelled";
 }
 
 function isStatus(value: unknown): value is Status {
@@ -89,6 +93,7 @@ export async function cancelOrder(id: Order["id"]): Promise<Order> {
 
   const cancelled = await setStatus(id, "cancelled");
   broadcast("order-cancelled", cancelled, id);
+  endOrderStream(id);
 
   const product = await findProductById(order.productId);
   if (product) await setStock(product, product.stock + order.quantity);
@@ -115,6 +120,7 @@ export async function changeOrderStatus(id: Order["id"], status: unknown): Promi
   const updated = await setStatus(id, status);
   broadcast("order-status-changed", updated, id);
   if (status === "shipped") scheduleDelivery(id);
+  if (isFinished(updated)) endOrderStream(id);
   return updated;
 }
 

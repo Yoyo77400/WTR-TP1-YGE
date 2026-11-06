@@ -41,9 +41,16 @@ async function start() {
       const order = JSON.parse(e.data);
       render(order);
       log(`${event} → ${STATUS_LABELS[order.status]}`);
+      if (order.status === "delivered" || order.status === "cancelled") {
+        source.close();
+        log("suivi terminé");
+      }
     });
   }
-  source.onerror = () => log("connexion perdue, reconnexion automatique…");
+  source.onerror = () => {
+    if (source.readyState === EventSource.CLOSED) log("suivi terminé");
+    else log("connexion perdue, reconnexion dans 5 s…");
+  };
   window.addEventListener("pagehide", () => source.close());
 }
 

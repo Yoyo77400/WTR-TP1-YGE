@@ -4,6 +4,7 @@ import {
   changeOrderStatus,
   createOrder,
   getOrder,
+  isFinished,
   listOrders,
 } from "../services/order.service.js";
 import { subscribeToOrder } from "../sse.js";
@@ -21,7 +22,8 @@ ordersRouter.get("/:id", async (req, res) => {
 
 ordersRouter.get("/:id/events", async (req, res) => {
   const order = await getOrder(checkValidId(req.params.id));
-  subscribeToOrder(order.id, res);
+  const lastEventId = Number(req.get("Last-Event-ID") ?? 0);
+  subscribeToOrder(order.id, res, lastEventId, isFinished(order));
 });
 
 ordersRouter.post("/", async (req, res) => {
