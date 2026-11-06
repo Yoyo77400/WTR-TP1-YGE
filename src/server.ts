@@ -8,6 +8,8 @@ import { seedUsers } from "./models/user.model.js";
 import { ordersRouter } from "./routes/orders.routes.js";
 import { productsRouter } from "./routes/products.routes.js";
 import { usersRouter } from "./routes/users.routes.js";
+import { resumeDeliveries } from "./services/order.service.js";
+import { subscribe } from "./sse.js";
 
 const DEFAULT_PORT = 3000;
 
@@ -18,6 +20,10 @@ app.use(express.static("public"));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/events", (_req, res) => {
+  subscribe(res);
 });
 
 app.use("/users", usersRouter);
@@ -41,6 +47,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 await seedUsers();
 await seedProducts();
 await seedOrders();
+await resumeDeliveries();
 
 const PORT = Number(process.env.PORT) || DEFAULT_PORT;
 export const server = app.listen(PORT, () =>

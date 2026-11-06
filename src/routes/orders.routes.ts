@@ -6,6 +6,7 @@ import {
   getOrder,
   listOrders,
 } from "../services/order.service.js";
+import { subscribeToOrder } from "../sse.js";
 import { checkValidId } from "../utils/parse-id.js";
 
 export const ordersRouter = Router();
@@ -16,6 +17,11 @@ ordersRouter.get("/", async (_req, res) => {
 
 ordersRouter.get("/:id", async (req, res) => {
   res.json(await getOrder(checkValidId(req.params.id)));
+});
+
+ordersRouter.get("/:id/events", async (req, res) => {
+  const order = await getOrder(checkValidId(req.params.id));
+  subscribeToOrder(order.id, res);
 });
 
 ordersRouter.post("/", async (req, res) => {

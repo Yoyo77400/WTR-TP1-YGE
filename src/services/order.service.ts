@@ -8,7 +8,10 @@ import * as orderModel from "../models/order.model.js";
 import type { NewOrder } from "../models/order.model.js";
 import { findProductById, updateProductStock } from "../models/product.model.js";
 import { findUserById } from "../models/user.model.js";
-import type { Order, Status } from "../types.js";
+import { broadcast } from "../sse.js";
+import type { Order, Product, Status } from "../types.js";
+
+const DELIVERY_DELAY_MS = 20_000;
 
 const STATUSES: readonly Status[] = ["preparing", "shipped", "delivered", "cancelled"];
 
@@ -69,8 +72,10 @@ export async function createOrder(body: unknown): Promise<Order> {
     );
   }
 
-  await updateProductStock(product.id, product.stock - input.quantity);
-  return orderModel.createOrder(input);
+  const order = await orderModel.createOrder(input);
+  broadcast("order-created", order, order.id);
+  await setStock(product, product.stock - input.quantity);
+  return order;
 }
 
 export async function cancelOrder(id: Order["id"]): Promise<Order> {
@@ -82,10 +87,13 @@ export async function cancelOrder(id: Order["id"]): Promise<Order> {
     );
   }
 
-  const product = await findProductById(order.productId);
-  if (product) await updateProductStock(product.id, product.stock + order.quantity);
+  const cancelled = await setStatus(id, "cancelled");
+  broadcast("order-cancelled", cancelled, id);
 
-  return setStatus(id, "cancelled");
+  const product = await findProductById(order.productId);
+  if (product) await setStock(product, product.stock + order.quantity);
+
+  return cancelled;
 }
 
 export async function changeOrderStatus(id: Order["id"], status: unknown): Promise<Order> {
@@ -104,11 +112,32 @@ export async function changeOrderStatus(id: Order["id"], status: unknown): Promi
       `La commande ${id} ne peut pas passer de ${order.status} à ${status}`,
     );
   }
-  return setStatus(id, status);
+  const updated = await setStatus(id, status);
+  broadcast("order-status-changed", updated, id);
+  if (status === "shipped") scheduleDelivery(id);
+  return updated;
+}
+
+export async function resumeDeliveries(): Promise<void> {
+  const orders = await orderModel.findAllOrders();
+  for (const order of orders) {
+    if (order.status === "shipped") scheduleDelivery(order.id);
+  }
+}
+
+function scheduleDelivery(id: Order["id"]): void {
+  setTimeout(() => {
+    changeOrderStatus(id, "delivered").catch((err: unknown) => console.error(err));
+  }, DELIVERY_DELAY_MS);
 }
 
 async function setStatus(id: Order["id"], status: Status): Promise<Order> {
   const updated = await orderModel.updateOrderStatus(id, status);
   if (!updated) throw new HttpError(HTTP_NOT_FOUND, `Commande ${id} introuvable`);
   return updated;
+}
+
+async function setStock(product: Product, stock: Product["stock"]): Promise<void> {
+  const updated = await updateProductStock(product.id, stock);
+  if (updated) broadcast("stock-changed", updated);
 }

@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Suivi de commande</title>
 </head>
 <body>
-    <h1>Order</h1>
+    <h1>Suivi de commande <span id="order-id"></span></h1>
+    <p>Statut : <strong id="status">chargement…</strong></p>
+    <p id="details"></p>
+    <h2>Événements reçus</h2>
+    <ul id="log"></ul>
+    <script src="/js/order.js"></script>
 </body>
 </html>
