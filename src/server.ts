@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { seedOrders } from "./models/order.model.js";
 import { seedProducts } from "./models/product.model.js";
 import { seedUsers } from "./models/user.model.js";
 
@@ -16,6 +17,7 @@ app.get("/health", (_req, res) => {
 
 await seedUsers();
 await seedProducts();
+await seedOrders();
 
 const PORT = Number(process.env.PORT) || DEFAULT_PORT;
 export const server = app.listen(PORT, () =>
