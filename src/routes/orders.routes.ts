@@ -1,0 +1,32 @@
+import { Router } from "express";
+import { HTTP_CREATED } from "../errors.js";
+import {
+  changeOrderStatus,
+  createOrder,
+  getOrder,
+  listOrders,
+} from "../services/order.service.js";
+import { checkValidId } from "../utils/parse-id.js";
+
+export const ordersRouter = Router();
+
+ordersRouter.get("/", async (_req, res) => {
+  res.json(await listOrders());
+});
+
+ordersRouter.get("/:id", async (req, res) => {
+  res.json(await getOrder(checkValidId(req.params.id)));
+});
+
+ordersRouter.post("/", async (req, res) => {
+  const body: unknown = req.body;
+  res.status(HTTP_CREATED).json(await createOrder(body));
+});
+
+ordersRouter.patch("/:id/status", async (req, res) => {
+  const body: unknown = req.body;
+  const status = typeof body === "object" && body !== null
+    ? (body as Record<string, unknown>).status
+    : undefined;
+  res.json(await changeOrderStatus(checkValidId(req.params.id), status));
+});
